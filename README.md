@@ -14,7 +14,6 @@ All contributions and feedback are much appreciated.
 
 * I am **not** a LUA or Wireshark expert, so this may not be perfect code. Use at your own risk.
 * Currently MMDVM-dissector will only dissect the MMDVM Headers, not the DMR frames themselves.
-* Currently only DMRD frames are decoded. I hope to fix this in the coming days.
 
 ### Installation
 
@@ -26,8 +25,8 @@ All contributions and feedback are much appreciated.
 
 ### Usage
 
-* Open a packet capture (PCAP) containing MMDVM packets
-* By default anything on port 62031 will be decoded as MMDVM
+* Open a packet capture (pcap) containing MMDVM packets. You can find an example pcap in this repository. 
+* By default anything on port 62030 will be decoded as MMDVM
 * If you're using a different port, find a related packet, right click 'Decode As' Set the field to 'UDP Port' and set the 'Current' field to MMDVM
 
 ### Licence
