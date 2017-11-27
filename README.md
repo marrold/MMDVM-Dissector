@@ -35,3 +35,7 @@ All contributions and feedback are much appreciated.
 This project is licensed under the [Creative Commons CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) licence.
 
 You are free to share and adapt the code as required, however you *must* give appropriate credit and indicate what changes have been made. You must also distribute your adaptation under the same license. Commercial use is prohibited.
+
+### Acknowledgments
+
+Thanks to the creators of the MMDVM protocol -  DL5DI, G4KLX and DG1HT, and anyone else whose contributed to the project.
