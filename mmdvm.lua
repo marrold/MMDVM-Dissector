@@ -1,5 +1,5 @@
 -- create myproto protocol and its fields
-p_myproto = Proto ("MMDVM","MMDVM Protocol")
+p_mmdvm = Proto ("MMDVM","MMDVM Protocol")
 -- local f_command = ProtoField.uint16("myproto.command", "Command", base.HEX)
 local f_signature = ProtoField.string("mmdvm.sig", "Signature", base.ASCII)
 local f_seq = ProtoField.uint8("mmdvm.seq", "Sequence", base.DEC)
@@ -15,11 +15,8 @@ local f_stream_id = ProtoField.uint32("mmdvm.stream_id", "Stream ID", base.DEC)
 local f_dmr_pkt = ProtoField.bytes("mmdvm.date", "DMR Data", base.NONE)
 local f_ber = ProtoField.bytes("mmdvm.ber", "BER", base.NONE)
 local f_rssi = ProtoField.bytes("mmdvm.rssi", "RSSI", base.NONE)
--- ProtoField.uint24(abbr, [name], [base], [valuestring], [mask], [desc])
 
-local f_data = ProtoField.string("myproto.data", "Data", FT_STRING)
- 
-p_myproto.fields = {f_signature, f_seq, f_src_id, f_dst_id, f_rptr_id, f_slot, f_call_type, f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_ber, f_rssi}
+p_mmdvm.fields = {f_signature, f_seq, f_src_id, f_dst_id, f_rptr_id, f_slot, f_call_type, f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_ber, f_rssi}
  
 -- convert hex to string
 function string.fromhex(str)
@@ -107,15 +104,15 @@ function voice_seq(bits)
   end
 end
 
--- myproto dissector function
-function p_myproto.dissector (buf, pkt, root)
+-- mmdvm dissector function
+function p_mmdvm.dissector (buf, pkt, root)
   -- validate packet length is adequate, otherwise quit
 
   if buf:len() == 0 then return end
-  pkt.cols.protocol = p_myproto.name
+  pkt.cols.protocol = p_mmdvm.name
 
-  -- create subtree for myproto
-  subtree = root:add(p_myproto, buf(0))
+  -- create subtree for mmdvm
+  subtree = root:add(p_mmdvm, buf(0))
   	if (tostring(buf(0,4)):fromhex()) == "DMRD" then
 
   	  _call_type = call_type(buf(15,1))
@@ -147,13 +144,14 @@ function p_myproto.dissector (buf, pkt, root)
     end
 end
 
+
 -- Initialization routine
-function p_myproto.init()
+function p_mmdvm.init()
 end
- 
+
 -- register a chained dissector for port 62031
 local udp_dissector_table = DissectorTable.get("udp.port")
 dissector = udp_dissector_table:get_dissector(62031)
-  -- you can call dissector from function p_myproto.dissector above
+  -- you can call dissector from function p_mmdvm.dissector above
   -- so that the previous dissector gets called
-udp_dissector_table:add(62031, p_myproto)
+udp_dissector_table:add(62031, p_mmdvm)
