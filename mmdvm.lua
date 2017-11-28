@@ -31,6 +31,8 @@ local f_longitude = ProtoField.string("mmdvm.long", "Longitude", base.ASCII)
 local f_height = ProtoField.string("mmdvm.height", "Height", base.ASCII)
 local f_location = ProtoField.string("mmdvm.loc", "Location", base.ASCII)
 local f_description = ProtoField.string("mmdvm.desc", "Description", base.ASCII)
+local f_mode = ProtoField.string("mmdvm.mode", "Mode", base.ASCII)
+local f_slots = ProtoField.string("mmdvm.slots", "Slots", base.ASCII)
 local f_url = ProtoField.string("mmdvm.url", "URL", base.ASCII)
 local f_software_id = ProtoField.string("mmdvm.sw", "Software ID", base.ASCII)
 local f_package_id = ProtoField.string("mmdvm.pkg", "Package ID", base.ASCII)
@@ -38,7 +40,7 @@ local f_package_id = ProtoField.string("mmdvm.pkg", "Package ID", base.ASCII)
 p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_slot, f_call_type, 
   f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_ber, f_rssi, f_salt, f_hash, 
   f_call_sign, f_rx_freq, f_tx_freq, f_pwr, f_color_code, f_latitude, f_longitude, f_height, f_location,
-  f_description, f_url, f_software_id, f_package_id}
+  f_description, f_mode, f_slots, f_url, f_software_id, f_package_id}
  
 -- convert hex to string
 function string.fromhex(str)
@@ -133,6 +135,23 @@ function voice_seq(bits)
     return "E"
   elseif (result == 5) then
     return "F"
+  end
+end
+
+-- Gets mode and slot from MMDVM header
+function mode(bits)
+  bits = bits:string()
+  bits = tonumber(bits)
+  if(bits == 4) then
+    return "simplex", ""
+  elseif(bits == 3) then
+    return "duplex", "1,2"
+  elseif(bits == 2) then
+    return "duplex", "2"
+  elseif(bits == 1) then
+    return "duplex", "1"
+  else
+    return "unknown", ""
   end
 end
 
@@ -257,6 +276,9 @@ function p_mmdvm.dissector (buf, pkt, root)
       pkt.cols.info:set("MASTER LOGIN/CONF ERROR")
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTC" then
+
+      _mode, _slots = mode(buf(97,1))
+
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
 
@@ -273,6 +295,10 @@ function p_mmdvm.dissector (buf, pkt, root)
               :append_text("M")
       conftree:add(f_location, buf(58,20))
       conftree:add(f_description, buf(78,19))
+      conftree:add(f_mode, buf(97,1), _mode)
+      if _mode == 'duplex' then
+        conftree:add(f_slots, buf(97,1), _slots)
+      end
       conftree:add(f_url, buf(98,124))
       conftree:add(f_software_id, buf(222,40))
       conftree:add(f_package_id, buf(262,40))
