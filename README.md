@@ -28,6 +28,10 @@ All contributions and feedback are much appreciated.
 * Open a packet capture (pcap) containing MMDVM packets. You can find an example pcap in this repository. 
 * By default anything on port 62030 will be decoded as MMDVM
 * If you're using a different port, find a related packet, right click 'Decode As' Set the field to 'UDP Port' and set the 'Current' field to MMDVM
+* To add the sequence number to a column-
+   Find a DMRD Voice Packet > Right Click Sequence Field > Click 'Apply as column'
+* To show the delta (time difference) between packets-
+   Wireshark Preferences > Appearence > Columns > Title = Delta, Type = Delta Time > Save
 
 ### Licence
 
