@@ -8,6 +8,7 @@ local f_len = ProtoField.uint8("mmdvm.len", "Length", base.DEC)
 local f_src_id = ProtoField.uint24("mmdvm.src_id", "Source ID", base.DEC)
 local f_dst_id = ProtoField.uint24("mmdvm.dst_id", "Destination ID", base.DEC)
 local f_rptr_id = ProtoField.uint32("mmdvm.rptr_id", "Repeater ID", base.DEC)
+local f_rptr_id_salt = ProtoField.uint32("mmdvm.rptr_id_salt", "Repeater ID / Salt", base.DEC)
 local f_slot = ProtoField.string("mmdvm.slot", "Slot", base.ASCII)
 local f_call_type = ProtoField.string("mmdvm.call_type", "Call type", base.ASCII)
 local f_frame_type = ProtoField.string("mmdvm.frame_type", "Frame type", base.ASCII)
@@ -37,7 +38,7 @@ local f_url = ProtoField.string("mmdvm.url", "URL", base.ASCII)
 local f_software_id = ProtoField.string("mmdvm.sw", "Software ID", base.ASCII)
 local f_package_id = ProtoField.string("mmdvm.pkg", "Package ID", base.ASCII)
 
-p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_slot, f_call_type, 
+p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_rptr_id_salt, f_slot, f_call_type, 
   f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_ber, f_rssi, f_salt, f_hash, 
   f_call_sign, f_rx_freq, f_tx_freq, f_pwr, f_color_code, f_latitude, f_longitude, f_height, f_location,
   f_description, f_mode, f_slots, f_url, f_software_id, f_package_id}
@@ -266,7 +267,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       	  subtree:add_expert_info(PI_MALFORMED, PI_ERROR, "ACK MALFORMED")
 	      pkt.cols.info:set("REPEATER ACK - MALFORMED")
 	  else
-        subtree:add(f_rptr_id, buf(6,4))
+        subtree:add(f_rptr_id_salt, buf(6,4))
         pkt.cols.info:set("REPEATER ACK")
       end
 
