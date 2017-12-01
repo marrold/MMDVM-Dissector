@@ -4,7 +4,11 @@ I use Wireshark on an almost daily basis to troubleshoot the SIP protocol and ha
 
 All contributions and feedback are much appreciated.
 
-**This is a work in progress**
+
+### Features
+
+* Parses MMDVM frames, showing all fields.
+* Tracks login state per client, so the login process is displayed correctly.
 
 ### Screenshots
 
