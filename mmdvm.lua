@@ -1,6 +1,13 @@
+
+-- state handling
+local stream_map = {}
+local state_map = {}
+local f_udp_stream  = Field.new("udp.stream")
+
 -- create myproto protocol and its fields
 p_mmdvm = Proto ("MMDVM","MMDVM Protocol")
 p_mmdvm_conf = Proto ("MMDVM_Conf","MMDVM Configuration")
+
 -- local f_command = ProtoField.uint16("myproto.command", "Command", base.HEX)
 local f_signature = ProtoField.string("mmdvm.sig", "Signature", base.ASCII)
 local f_seq = ProtoField.uint8("mmdvm.seq", "Sequence", base.DEC)
@@ -173,6 +180,12 @@ function rssi(bits)
   return result
 end
 
+-- init maps on start
+function p_mmdvm.init()
+    stream_map = {}
+    state_map = {}
+end
+
 -- mmdvm dissector function
 function p_mmdvm.dissector (buf, pkt, root)
   -- validate packet length is adequate, otherwise quit
@@ -180,18 +193,27 @@ function p_mmdvm.dissector (buf, pkt, root)
   if buf:len() == 0 then return end
   pkt.cols.protocol = p_mmdvm.name
 
+  -- handle state
+  _stream = f_udp_stream().value
+  _number = tostring(pkt.number)
+
+  if not pkt.visited then
+    if not stream_map[_stream] then
+      stream_map[_stream] = ""
+    end
+  end
 
   -- create subtree for mmdvm
   subtree = root:add(p_mmdvm, buf(0))
 
-  	if (tostring(buf(0,4)):fromhex()) == "DMRD" then
+    if (tostring(buf(0,4)):fromhex()) == "DMRD" then
 
-  	  _call_type = call_type(buf(15,1))
-  	  _frame_type = frame_type(buf(15,1))
-  	  _ber = ber(buf(53,1))
-  	  _rssi = rssi(buf(54,1))
-  	  _data_type = data_type(buf(15,1))
-  	  _voice_seq = voice_seq(buf(15,1))
+      _call_type = call_type(buf(15,1))
+      _frame_type = frame_type(buf(15,1))
+      _ber = ber(buf(53,1))
+      _rssi = rssi(buf(54,1))
+      _data_type = data_type(buf(15,1))
+      _voice_seq = voice_seq(buf(15,1))
 
       -- add protocol fields to subtree
       subtree:add(f_signature, buf(0,4))
@@ -205,17 +227,17 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       if _frame_type == "data_sync" then
         subtree:add(f_data_type, buf(15,1), _data_type)
-  	    if _data_type == "voice_head" then
-  	    	pkt.cols.info:set("VOICE HEADER")
-  	    elseif _data_type == "voice_term" then
-  	    	pkt.cols.info:set("VOICE TERMINATOR")
-  	    end
+        if _data_type == "voice_head" then
+          pkt.cols.info:set("VOICE HEADER")
+        elseif _data_type == "voice_term" then
+          pkt.cols.info:set("VOICE TERMINATOR")
+        end
       else
         subtree:add(f_voice_seq, buf(15,1), _voice_seq)
         if _frame_type == "voice_sync" then
-        	pkt.cols.info:set("VOICE SYNC")
+          pkt.cols.info:set("VOICE SYNC")
         else
-        	pkt.cols.info:set("VOICE FRAME")
+          pkt.cols.info:set("VOICE FRAME")
         end
       end
 
@@ -223,7 +245,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_dmr_pkt, buf(20,33))
       if buf:len() >= 55 then
         subtree:add(f_ber, buf(53,1), _ber)
-        	   :append_text("%")
+             :append_text("%")
         if tonumber(_rssi) < 0 then
           subtree:add(f_rssi, buf(54,1), _rssi)
                  :append_text("dBm")
@@ -254,6 +276,10 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
       pkt.cols.info:set("REPEATER LOGIN")
+      
+      if not pkt.visited then
+        stream_map[_stream] = "INIT"
+      end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTK" then
       subtree:add(f_signature, buf(0,4))
@@ -261,15 +287,69 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_hash, buf(8,(buf:len() - 8)))
       pkt.cols.info:set("REPEATER AUTH")
 
-    elseif (tostring(buf(0,4)):fromhex()) == "RPTA" then
-      subtree:add(f_signature, buf(0,6))
-      if buf:len() < 9 then
-      	  subtree:add_expert_info(PI_MALFORMED, PI_ERROR, "ACK MALFORMED")
-	      pkt.cols.info:set("REPEATER ACK - MALFORMED")
-	  else
-        subtree:add(f_rptr_id_salt, buf(6,4))
-        pkt.cols.info:set("REPEATER ACK")
+      if not pkt.visited then
+        stream_map[_stream] = "AUTH"
       end
+
+    elseif (tostring(buf(0,4)):fromhex()) == "RPTA" then
+
+      subtree:add(f_signature, buf(0,6))
+   
+      if not pkt.visited then
+
+        if not state_map[_number] then
+          state_map[_number] = {}
+        end
+
+        if stream_map[_stream] == "INIT" then
+            state_map[_number]["STATE"] = "INIT"
+            if buf:len() == 10 then
+                subtree:add(f_salt, buf(6,4))
+                state_map[_number]['MSG'] = "REPEATER AUTH CHALLENGE"
+            else
+                state_map[_number]['MALFORMED'] = true
+                state_map[_number]['MSG'] = "REPEATER AUTH CHALLENGE - MALFORMED"
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])
+
+        elseif stream_map[_stream] == "AUTH" then
+            state_map[_number]['STATE'] = "AUTH"
+            if buf:len() == 10 then
+              subtree:add(f_rptr_id, buf(6,4))
+              state_map[_number]['MSG'] = "REPEATER AUTH SUCCESSFULL"
+            else
+              state_map[_number]['MALFORMED'] = true
+              state_map[_number]['MSG'] = "REPEATER AUTH SUCCESSFULL - MALFORMED"            
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])    
+
+        elseif stream_map[_stream] == "LOGIN" then
+            state_map[_number]['STATE'] = "LOGIN"
+            if buf:len() == 10 then
+              subtree:add(f_rptr_id, buf(6,4))
+              state_map[_number]['MSG'] = "REPEATER LOGIN SUCCESSFULL"
+            else
+              state_map[_number]['MALFORMED'] = true
+              state_map[_number]['MSG'] = "REPEATER LOGIN SUCCESSFULL - MALFORMED"
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])
+        end
+
+      elseif state_map[_number]['STATE'] ~= "INIT" then
+        _message = state_map[_number]['MSG']
+        pkt.cols.info:set(_message)
+        if not state_map[_number]['MALFORMED'] then
+           subtree:add(f_rptr_id, buf(6,4))
+        end
+
+      elseif state_map[_number]['STATE'] == "INIT" then
+        _message = state_map[_number]['MSG']
+        pkt.cols.info:set(_message)
+        if not state_map[_number]['MALFORMED'] then
+          subtree:add(f_salt, buf(6,4))
+        end
+      end
+    
 
     elseif (tostring(buf(0,4)):fromhex()) == "MSTN" then
       subtree:add(f_signature, buf(0,6))
@@ -304,17 +384,23 @@ function p_mmdvm.dissector (buf, pkt, root)
       conftree:add(f_software_id, buf(222,40))
       conftree:add(f_package_id, buf(262,40))
       pkt.cols.info:set("REPEATER CONF")
+
+      if not pkt.visited then
+        stream_map[_stream] = "LOGIN"
+      end
+
     end
 end
 
 
 -- Initialization routine
 function p_mmdvm.init()
+  stream_map = {}
 end
 
 -- register a chained dissector for port 62030
 local udp_dissector_table = DissectorTable.get("udp.port")
-dissector = udp_dissector_table:get_dissector(62030)
+dissector = udp_dissector_table:get_dissector(62031)
   -- you can call dissector from function p_mmdvm.dissector above
   -- so that the previous dissector gets called
-udp_dissector_table:add(62030, p_mmdvm)
+udp_dissector_table:add(62031, p_mmdvm)
