@@ -15,7 +15,7 @@ local f_len = ProtoField.uint8("mmdvm.len", "Length", base.DEC)
 local f_src_id = ProtoField.uint24("mmdvm.src_id", "Source ID", base.DEC)
 local f_dst_id = ProtoField.uint24("mmdvm.dst_id", "Destination ID", base.DEC)
 local f_rptr_id = ProtoField.uint32("mmdvm.rptr_id", "Repeater ID", base.DEC)
-local f_rptr_id_salt = ProtoField.uint32("mmdvm.rptr_id_salt", "Repeater ID / Salt", base.DEC)
+local f_rptr_id_ascii = ProtoField.string("mmdvm.rptr_id_ascii", "Repeater ID", base.ASCII)
 local f_slot = ProtoField.string("mmdvm.slot", "Slot", base.ASCII)
 local f_call_type = ProtoField.string("mmdvm.call_type", "Call type", base.ASCII)
 local f_frame_type = ProtoField.string("mmdvm.frame_type", "Frame type", base.ASCII)
@@ -79,6 +79,20 @@ function call_slot(bits)
     return "2"
   else
     return"1"
+  end
+end
+
+-- returns timeslot from BM MMDVM header
+function bm_slot(bits)
+
+  bits = bits(1, 1)
+  result = tonumber(bits)
+  if result == 0 then
+    return "DMO"
+  elseif result == 1 then
+    return"1"
+  elseif result == 2 then
+    return"2"
   end
 end
 
@@ -257,27 +271,27 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "RPTP" then
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id, buf(7,4))
-      pkt.cols.info:set("REPEATER PING")
+      pkt.cols.info:set("RPT PING")
 
     elseif (tostring(buf(0,4)):fromhex()) == "MSTP" then
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id, buf(7,4))
-      pkt.cols.info:set("MASTER PONG")
+      pkt.cols.info:set("MST PONG")
 
     elseif (tostring(buf(0,5)):fromhex()) == "RPTCL" then
       subtree:add(f_signature, buf(0,5))
       subtree:add(f_rptr_id, buf(5,4))
-      pkt.cols.info:set("REPEATER CLOSING DOWN")
+      pkt.cols.info:set("RPT CLOSING DOWN")
 
     elseif (tostring(buf(0,4)):fromhex()) == "MSTC" then
       subtree:add(f_signature, buf(0,5))
       subtree:add(f_rptr_id, buf(5,4))
-      pkt.cols.info:set("MASTER CLOSING DOWN")
+      pkt.cols.info:set("MST CLOSING DOWN")
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTL" then
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
-      pkt.cols.info:set("REPEATER LOGIN")
+      pkt.cols.info:set("RPT LOGIN")
       
       if not pkt.visited then
         stream_map[_stream] = "INIT"
@@ -287,7 +301,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
       subtree:add(f_hash, buf(8,(buf:len() - 8)))
-      pkt.cols.info:set("REPEATER AUTH")
+      pkt.cols.info:set("RPT AUTH")
 
       if not pkt.visited then
         stream_map[_stream] = "AUTH"
@@ -307,10 +321,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]["STATE"] = "INIT"
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
-                state_map[_number]['MSG'] = "REPEATER AUTH CHALLENGE"
+                state_map[_number]['MSG'] = "RPT AUTH CHALLENGE"
             else
                 state_map[_number]['MALFORMED'] = true
-                state_map[_number]['MSG'] = "REPEATER AUTH CHALLENGE - MALFORMED"
+                state_map[_number]['MSG'] = "RPT AUTH CHALLENGE - MALFORMED"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -318,10 +332,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "REPEATER AUTH SUCCESSFULL"
+              state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "REPEATER AUTH SUCCESSFULL - MALFORMED"            
+              state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL - MALFORMED"            
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
@@ -329,10 +343,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "REPEATER LOGIN SUCCESSFULL"
+              state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "REPEATER LOGIN SUCCESSFULL - MALFORMED"
+              state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL - MALFORMED"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -340,10 +354,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "REPEATER OPTIONS SUCCESSFULL"
+              state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "REPEATER OPTIONS SUCCESSFULL - MALFORMED"
+              state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL - MALFORMED"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
         end
@@ -367,7 +381,7 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "MSTN" then
       subtree:add(f_signature, buf(0,6))
       subtree:add(f_rptr_id, buf(6,4))
-      pkt.cols.info:set("MASTER LOGIN/CONF ERROR")
+      pkt.cols.info:set("MST LOGIN/CONF ERROR")
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTC" then
 
@@ -396,18 +410,45 @@ function p_mmdvm.dissector (buf, pkt, root)
       conftree:add(f_url, buf(98,124))
       conftree:add(f_software_id, buf(222,40))
       conftree:add(f_package_id, buf(262,40))
-      pkt.cols.info:set("REPEATER CONF")
-
+      pkt.cols.info:set("RPT CONF")
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTO" then
+
       subtree:add(f_signature, buf(0,6))
       subtree:add(f_rptr_id, buf(6,4))   
       subtree:add(f_options, buf(8,buf:len() - 8 ))     
-      pkt.cols.info:set("REPEATER OPTIONS")
+      pkt.cols.info:set("RPT OPTIONS")
 
       if not pkt.visited then
         stream_map[_stream] = "OPTIONS"
       end
+
+    elseif (tostring(buf(0,4)):fromhex()) == "RPTSBKN" then
+
+      subtree:add(f_signature, buf(0,6))
+      subtree:add(f_rptr_id_ascii, buf(6,8))  
+      pkt.cols.info:set("MST BEACON")
+
+    elseif (tostring(buf(0,7)):fromhex()) == "RPTRSSI" then
+
+      _bm_slot = bm_slot(buf(10,2)) 
+
+      subtree:add(f_signature, buf(0,7))
+      subtree:add(f_rptr_id_ascii, buf(7,8))
+      subtree:add(f_slots, buf(15,2), _bm_slot)
+      subtree:add(f_rssi, buf(17,5))
+             :append_text("dBm")
+      pkt.cols.info:set("RPT RSSI")
+
+    elseif (tostring(buf(0,7)):fromhex()) == "RPTINTR" then
+
+      _bm_slot = bm_slot(buf(10,2)) 
+
+      subtree:add(f_signature, buf(0,7))
+      subtree:add(f_rptr_id_ascii, buf(7,8))
+      subtree:add(f_slots, buf(15,2), _bm_slot)
+      pkt.cols.info:set("RPT CALL INTERRUPT")
+
     end
 end
 
