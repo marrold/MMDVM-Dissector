@@ -376,12 +376,68 @@ function p_mmdvm.dissector (buf, pkt, root)
           subtree:add(f_salt, buf(6,4))
         end
       end
-    
 
-    elseif (tostring(buf(0,4)):fromhex()) == "MSTN" then
+    elseif (tostring(buf(3,3)):fromhex()) == "NAK" then
+
       subtree:add(f_signature, buf(0,6))
-      subtree:add(f_rptr_id, buf(6,4))
-      pkt.cols.info:set("MST LOGIN/CONF ERROR")
+   
+      if not pkt.visited then
+
+        if not state_map[_number] then
+          state_map[_number] = {}
+        end
+
+        if stream_map[_stream] == "INIT" then
+            state_map[_number]["STATE"] = "INIT"
+            if buf:len() == 10 then
+                subtree:add(f_salt, buf(6,4))
+                state_map[_number]['MSG'] = "RPT INIT FAILED"
+            else
+                state_map[_number]['MALFORMED'] = true
+                state_map[_number]['MSG'] = "RPT INIT FAILED - MALFORMED"
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])
+
+        elseif stream_map[_stream] == "AUTH" then
+            state_map[_number]['STATE'] = "AUTH"
+            if buf:len() == 10 then
+              subtree:add(f_rptr_id, buf(6,4))
+              state_map[_number]['MSG'] = "RPT AUTH FAILED"
+            else
+              state_map[_number]['MALFORMED'] = true
+              state_map[_number]['MSG'] = "RPT AUTH FAILED - MALFORMED"            
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])    
+
+        elseif stream_map[_stream] == "LOGIN" then
+            state_map[_number]['STATE'] = "LOGIN"
+            if buf:len() == 10 then
+              subtree:add(f_rptr_id, buf(6,4))
+              state_map[_number]['MSG'] = "RPT LOGIN FAILED"
+            else
+              state_map[_number]['MALFORMED'] = true
+              state_map[_number]['MSG'] = "RPT LOGIN FAILED - MALFORMED"
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])
+
+        elseif stream_map[_stream] == "OPTIONS" then
+            state_map[_number]['STATE'] = "LOGIN"
+            if buf:len() == 10 then
+              subtree:add(f_rptr_id, buf(6,4))
+              state_map[_number]['MSG'] = "RPT OPTIONS FAILED"
+            else
+              state_map[_number]['MALFORMED'] = true
+              state_map[_number]['MSG'] = "RPT OPTIONS FAILED - MALFORMED"
+            end
+            pkt.cols.info:set(state_map[_number]['MSG'])
+        end
+
+      elseif state_map[_number]['STATE'] ~= "INIT" then
+        _message = state_map[_number]['MSG']
+        pkt.cols.info:set(_message)
+        if not state_map[_number]['MALFORMED'] then
+           subtree:add(f_rptr_id, buf(6,4))
+        end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTC" then
 
