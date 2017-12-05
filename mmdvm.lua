@@ -291,7 +291,7 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "RPTL" then
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
-      pkt.cols.info:set("RPT LOGIN")
+      pkt.cols.info:set("RPT LOGIN INIT")
       
       if not pkt.visited then
         stream_map[_stream] = "INIT"
@@ -324,7 +324,7 @@ function p_mmdvm.dissector (buf, pkt, root)
                 state_map[_number]['MSG'] = "RPT AUTH CHALLENGE"
             else
                 state_map[_number]['MALFORMED'] = true
-                state_map[_number]['MSG'] = "RPT AUTH CHALLENGE - MALFORMED"
+                state_map[_number]['MSG'] = "RPT AUTH CHALLENGE [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -335,18 +335,18 @@ function p_mmdvm.dissector (buf, pkt, root)
               state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL - MALFORMED"            
+              state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL [MALFORMED]"            
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
-        elseif stream_map[_stream] == "LOGIN" then
+        elseif stream_map[_stream] == "LOGIN" or stream_map[_stream] == "CONF" then
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
               state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL - MALFORMED"
+              state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -357,7 +357,7 @@ function p_mmdvm.dissector (buf, pkt, root)
               state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL - MALFORMED"
+              state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
         end
@@ -377,11 +377,14 @@ function p_mmdvm.dissector (buf, pkt, root)
         end
       end
 
-    elseif (tostring(buf(3,3)):fromhex()) == "NAK" then
+    elseif (tostring(buf(0,6)):fromhex()) == "MSTNAK" then
 
       subtree:add(f_signature, buf(0,6))
+      info("NAK in frame" .. _number)
    
       if not pkt.visited then
+
+        info("univsited NAK in frame" .. _number)
 
         if not state_map[_number] then
           state_map[_number] = {}
@@ -391,10 +394,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]["STATE"] = "INIT"
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
-                state_map[_number]['MSG'] = "RPT INIT FAILED"
+                state_map[_number]['MSG'] = "MSTNAK - LOGIN INIT FAILED"
             else
                 state_map[_number]['MALFORMED'] = true
-                state_map[_number]['MSG'] = "RPT INIT FAILED - MALFORMED"
+                state_map[_number]['MSG'] = "MSTNAK - LOGIN INIT FAILED [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -402,21 +405,21 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "RPT AUTH FAILED"
+              state_map[_number]['MSG'] = "MSTNAK - AUTH FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT AUTH FAILED - MALFORMED"            
+              state_map[_number]['MSG'] = "MSTNAK - AUTH FAILED [MALFORMED]"            
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
-        elseif stream_map[_stream] == "LOGIN" then
-            state_map[_number]['STATE'] = "LOGIN"
+        elseif stream_map[_stream] == "CONF" then
+            state_map[_number]['STATE'] = "CONF"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "RPT LOGIN FAILED"
+              state_map[_number]['MSG'] = "MSTNAK - CONF FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT LOGIN FAILED - MALFORMED"
+              state_map[_number]['MSG'] = "MSTNAK - CONF FAILED [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -424,20 +427,31 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "RPT OPTIONS FAILED"
+              state_map[_number]['MSG'] = "MSTNAK - OPTIONS FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT OPTIONS FAILED - MALFORMED"
+              state_map[_number]['MSG'] = "MSTNAK - OPTIONS FAILED [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
+
+        else
+          if buf:len() == 10 then
+            subtree:add(f_rptr_id, buf(6,4))
+            pkt.cols.info:set("MSTNAK")
+          else
+             pkt.cols.info:set("MSTNAK [MALFORMED]")
+          end          
         end
 
-      elseif state_map[_number]['STATE'] ~= "INIT" then
+      else
+
+        info("visited NAK in frame" .. _number)
         _message = state_map[_number]['MSG']
         pkt.cols.info:set(_message)
         if not state_map[_number]['MALFORMED'] then
            subtree:add(f_rptr_id, buf(6,4))
         end
+      end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTC" then
 
@@ -467,6 +481,10 @@ function p_mmdvm.dissector (buf, pkt, root)
       conftree:add(f_software_id, buf(222,40))
       conftree:add(f_package_id, buf(262,40))
       pkt.cols.info:set("RPT CONF")
+
+      if not pkt.visited then
+        stream_map[_stream] = "CONF"
+      end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTO" then
 
