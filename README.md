@@ -45,4 +45,4 @@ You are free to share and adapt the code as required, however you *must* give ap
 
 ### Acknowledgments
 
-Thanks to the creators of the MMDVM protocol -  DL5DI, G4KLX and DG1HT, and anyone else whose contributed to the project.
+Thanks to the creators of the MMDVM protocol -  DL5DI, G4KLX and DG1HT, and anyone else who has contributed to the project.
