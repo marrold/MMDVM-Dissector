@@ -332,10 +332,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFULL"
+              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFUL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFULL [MALFORMED]"            
+              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFUL [MALFORMED]"            
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
@@ -343,10 +343,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "MST->RPT: LOGIN SUCCESSFULL"
+              state_map[_number]['MSG'] = "MST->RPT: LOGIN SUCCESSFUL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MST->RPT: LOGIN SUCCESSFULL [MALFORMED]"
+              state_map[_number]['MSG'] = "MST->RPT: LOGIN SUCCESSFUL [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -354,10 +354,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "MST->RPT: OPTIONS SUCCESSFULL"
+              state_map[_number]['MSG'] = "MST->RPT: OPTIONS SUCCESSFUL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MST->RPT: OPTIONS SUCCESSFULL [MALFORMED]"
+              state_map[_number]['MSG'] = "MST->RPT: OPTIONS SUCCESSFUL [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
         end
