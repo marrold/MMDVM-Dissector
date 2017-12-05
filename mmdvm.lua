@@ -271,27 +271,27 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "RPTP" then
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id, buf(7,4))
-      pkt.cols.info:set("RPT PING")
+      pkt.cols.info:set("RPT->MST: PING")
 
     elseif (tostring(buf(0,4)):fromhex()) == "MSTP" then
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id, buf(7,4))
-      pkt.cols.info:set("MST PONG")
+      pkt.cols.info:set("MST->RPT: PONG")
 
     elseif (tostring(buf(0,5)):fromhex()) == "RPTCL" then
       subtree:add(f_signature, buf(0,5))
       subtree:add(f_rptr_id, buf(5,4))
-      pkt.cols.info:set("RPT CLOSING DOWN")
+      pkt.cols.info:set("RPT->MST: CLOSING DOWN")
 
     elseif (tostring(buf(0,4)):fromhex()) == "MSTC" then
       subtree:add(f_signature, buf(0,5))
       subtree:add(f_rptr_id, buf(5,4))
-      pkt.cols.info:set("MST CLOSING DOWN")
+      pkt.cols.info:set("MST->RPT: CLOSING DOWN")
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTL" then
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
-      pkt.cols.info:set("RPT LOGIN INIT")
+      pkt.cols.info:set("RPT->MST: LOGIN INIT")
       
       if not pkt.visited then
         stream_map[_stream] = "INIT"
@@ -301,7 +301,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
       subtree:add(f_hash, buf(8,(buf:len() - 8)))
-      pkt.cols.info:set("RPT AUTH")
+      pkt.cols.info:set("RPT->MST: AUTH")
 
       if not pkt.visited then
         stream_map[_stream] = "AUTH"
@@ -321,10 +321,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]["STATE"] = "INIT"
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
-                state_map[_number]['MSG'] = "RPT AUTH CHALLENGE"
+                state_map[_number]['MSG'] = "MST->RPT: AUTH CHALLENGE"
             else
                 state_map[_number]['MALFORMED'] = true
-                state_map[_number]['MSG'] = "RPT AUTH CHALLENGE [MALFORMED]"
+                state_map[_number]['MSG'] = "MST->RPT: AUTH CHALLENGE [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -332,10 +332,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL"
+              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT AUTH SUCCESSFULL [MALFORMED]"            
+              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFULL [MALFORMED]"            
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
@@ -343,10 +343,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL"
+              state_map[_number]['MSG'] = "MST->RPT: LOGIN SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT LOGIN SUCCESSFULL [MALFORMED]"
+              state_map[_number]['MSG'] = "MST->RPT: LOGIN SUCCESSFULL [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -354,10 +354,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL"
+              state_map[_number]['MSG'] = "MST->RPT: OPTIONS SUCCESSFULL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "RPT OPTIONS SUCCESSFULL [MALFORMED]"
+              state_map[_number]['MSG'] = "MST->RPT: OPTIONS SUCCESSFULL [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
         end
@@ -394,10 +394,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]["STATE"] = "INIT"
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
-                state_map[_number]['MSG'] = "MSTNAK - LOGIN INIT FAILED"
+                state_map[_number]['MSG'] = "MST->RPT: LOGIN INIT FAILED"
             else
                 state_map[_number]['MALFORMED'] = true
-                state_map[_number]['MSG'] = "MSTNAK - LOGIN INIT FAILED [MALFORMED]"
+                state_map[_number]['MSG'] = "MST->RPT: LOGIN INIT FAILED [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -405,10 +405,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "MSTNAK - AUTH FAILED"
+              state_map[_number]['MSG'] = "MST->RPT: AUTH FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MSTNAK - AUTH FAILED [MALFORMED]"            
+              state_map[_number]['MSG'] = "MST->RPT: AUTH FAILED [MALFORMED]"            
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
@@ -416,10 +416,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "CONF"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "MSTNAK - CONF FAILED"
+              state_map[_number]['MSG'] = "MST->RPT: CONF FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MSTNAK - CONF FAILED [MALFORMED]"
+              state_map[_number]['MSG'] = "MST->RPT: CONF FAILED [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -427,10 +427,10 @@ function p_mmdvm.dissector (buf, pkt, root)
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
-              state_map[_number]['MSG'] = "MSTNAK - OPTIONS FAILED"
+              state_map[_number]['MSG'] = "MST->RPT: OPTIONS FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MSTNAK - OPTIONS FAILED [MALFORMED]"
+              state_map[_number]['MSG'] = "MST->RPT: OPTIONS FAILED [MALFORMED]"
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
@@ -480,7 +480,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       conftree:add(f_url, buf(98,124))
       conftree:add(f_software_id, buf(222,40))
       conftree:add(f_package_id, buf(262,40))
-      pkt.cols.info:set("RPT CONF")
+      pkt.cols.info:set("RPT->MST: CONF")
 
       if not pkt.visited then
         stream_map[_stream] = "CONF"
@@ -491,7 +491,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,6))
       subtree:add(f_rptr_id, buf(6,4))   
       subtree:add(f_options, buf(8,buf:len() - 8 ))     
-      pkt.cols.info:set("RPT OPTIONS")
+      pkt.cols.info:set("RPT->MST: OPTIONS")
 
       if not pkt.visited then
         stream_map[_stream] = "OPTIONS"
@@ -501,7 +501,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       subtree:add(f_signature, buf(0,6))
       subtree:add(f_rptr_id_ascii, buf(6,8))  
-      pkt.cols.info:set("MST BEACON")
+      pkt.cols.info:set("MST->RPT: BEACON")
 
     elseif (tostring(buf(0,7)):fromhex()) == "RPTRSSI" then
 
@@ -512,7 +512,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_slots, buf(15,2), _bm_slot)
       subtree:add(f_rssi, buf(17,5))
              :append_text("dBm")
-      pkt.cols.info:set("RPT RSSI")
+      pkt.cols.info:set("RPT->MST: RSSI")
 
     elseif (tostring(buf(0,7)):fromhex()) == "RPTINTR" then
 
@@ -521,7 +521,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id_ascii, buf(7,8))
       subtree:add(f_slots, buf(15,2), _bm_slot)
-      pkt.cols.info:set("RPT CALL INTERRUPT")
+      pkt.cols.info:set("RPT->MST: CALL INTERRUPT")
 
     end
 end
