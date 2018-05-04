@@ -488,9 +488,9 @@ function p_mmdvm.dissector (buf, pkt, root)
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTO" then
 
-      subtree:add(f_signature, buf(0,6))
-      subtree:add(f_rptr_id, buf(6,4))   
-      subtree:add(f_options, buf(8,buf:len() - 8 ))     
+      subtree:add(f_signature, buf(0,4))
+      subtree:add(f_rptr_id, buf(4,4))
+      subtree:add(f_options, buf(8,buf:len() - 8 ))
       pkt.cols.info:set("RPT->MST: OPTIONS")
 
       if not pkt.visited then
