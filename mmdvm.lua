@@ -22,7 +22,8 @@ local f_frame_type = ProtoField.string("mmdvm.frame_type", "Frame type", base.AS
 local f_data_type = ProtoField.string("mmdvm.data_type", "Data type", base.ASCII)
 local f_voice_seq = ProtoField.string("mmdvm.voice_seq", "Voice Sequence", base.ASCII)
 local f_stream_id = ProtoField.uint32("mmdvm.stream_id", "Stream ID", base.DEC)
-local f_dmr_pkt = ProtoField.bytes("mmdvm.date", "DMR Data", base.NONE)
+local f_dmr_pkt = ProtoField.bytes("mmdvm.data", "DMR Data", base.NONE)
+local f_dmr_sig = ProtoField.bytes("mmdvm.sig", "DMR Signature", base.NONE)
 local f_ber = ProtoField.string("mmdvm.ber", "BER", base.ASCII)
 local f_rssi = ProtoField.string("mmdvm.rssi", "RSSI", base.ASCII)
 
@@ -48,7 +49,7 @@ local f_package_id = ProtoField.string("mmdvm.pkg", "Package ID", base.ASCII)
 local f_options = ProtoField.string("mmdvm.opts", "Options", base.ASCII)
 
 p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_rptr_id_salt, f_slot, f_call_type, 
-  f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_ber, f_rssi, f_salt, f_hash, 
+  f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_dmr_sig, f_ber, f_rssi, f_salt, f_hash, 
   f_call_sign, f_rx_freq, f_tx_freq, f_pwr, f_color_code, f_latitude, f_longitude, f_height, f_location,
   f_description, f_mode, f_slots, f_url, f_software_id, f_package_id, f_options}
  
@@ -215,7 +216,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
   if not pkt.visited then
     if not stream_map[_stream] then
-      stream_map[_stream] = ""
+      stream_map[_stream] = {}
     end
   end
 
@@ -259,13 +260,15 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       subtree:add(f_stream_id, buf(16,4))
       subtree:add(f_dmr_pkt, buf(20,33))
-      if buf:len() >= 55 then
+      if buf:len() == 55 then
         subtree:add(f_ber, buf(53,1), _ber)
              :append_text("%")
         if tonumber(_rssi) < 0 then
           subtree:add(f_rssi, buf(54,1), _rssi)
                  :append_text("dBm")
         end
+      elseif buf:len() == 73 then
+        subtree:add(f_dmr_sig, buf(53,20))
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTP" then
@@ -294,7 +297,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       pkt.cols.info:set("RPT->MST: LOGIN INIT")
       
       if not pkt.visited then
-        stream_map[_stream] = "INIT"
+        stream_map[_stream]["STATE"] = "INIT"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTK" then
@@ -304,7 +307,7 @@ function p_mmdvm.dissector (buf, pkt, root)
       pkt.cols.info:set("RPT->MST: AUTH")
 
       if not pkt.visited then
-        stream_map[_stream] = "AUTH"
+        stream_map[_stream]["STATE"] = "AUTH"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTA" then
@@ -317,7 +320,7 @@ function p_mmdvm.dissector (buf, pkt, root)
           state_map[_number] = {}
         end
 
-        if stream_map[_stream] == "INIT" then
+        if stream_map[_stream]["STATE"] == "INIT" then
             state_map[_number]["STATE"] = "INIT"
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
@@ -328,7 +331,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
-        elseif stream_map[_stream] == "AUTH" then
+        elseif stream_map[_stream]["STATE"] == "AUTH" then
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
@@ -339,7 +342,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
-        elseif stream_map[_stream] == "LOGIN" or stream_map[_stream] == "CONF" then
+        elseif stream_map[_stream]["STATE"] == "LOGIN" or stream_map[_stream]["STATE"] == "CONF" then
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
@@ -350,7 +353,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
-        elseif stream_map[_stream] == "OPTIONS" then
+        elseif stream_map[_stream]["STATE"] == "OPTIONS" then
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
@@ -390,7 +393,7 @@ function p_mmdvm.dissector (buf, pkt, root)
           state_map[_number] = {}
         end
 
-        if stream_map[_stream] == "INIT" then
+        if stream_map[_stream]["STATE"] == "INIT" then
             state_map[_number]["STATE"] = "INIT"
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
@@ -401,7 +404,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
-        elseif stream_map[_stream] == "AUTH" then
+        elseif stream_map[_stream]["STATE"] == "AUTH" then
             state_map[_number]['STATE'] = "AUTH"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
@@ -412,7 +415,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             end
             pkt.cols.info:set(state_map[_number]['MSG'])    
 
-        elseif stream_map[_stream] == "CONF" then
+        elseif stream_map[_stream]["STATE"] == "CONF" then
             state_map[_number]['STATE'] = "CONF"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
@@ -423,7 +426,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             end
             pkt.cols.info:set(state_map[_number]['MSG'])
 
-        elseif stream_map[_stream] == "OPTIONS" then
+        elseif stream_map[_stream]["STATE"] == "OPTIONS" then
             state_map[_number]['STATE'] = "LOGIN"
             if buf:len() == 10 then
               subtree:add(f_rptr_id, buf(6,4))
@@ -483,18 +486,18 @@ function p_mmdvm.dissector (buf, pkt, root)
       pkt.cols.info:set("RPT->MST: CONF")
 
       if not pkt.visited then
-        stream_map[_stream] = "CONF"
+        stream_map[_stream]["STATE"] = "CONF"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTO" then
 
       subtree:add(f_signature, buf(0,4))
-      subtree:add(f_rptr_id, buf(4,4))
-      subtree:add(f_options, buf(8,buf:len() - 8 ))
+      subtree:add(f_rptr_id, buf(4,4))   
+      subtree:add(f_options, buf(8,buf:len() - 8 ))     
       pkt.cols.info:set("RPT->MST: OPTIONS")
 
       if not pkt.visited then
-        stream_map[_stream] = "OPTIONS"
+        stream_map[_stream]["STATE"] = "OPTIONS"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTSBKN" then
@@ -524,12 +527,6 @@ function p_mmdvm.dissector (buf, pkt, root)
       pkt.cols.info:set("RPT->MST: CALL INTERRUPT")
 
     end
-end
-
-
--- Initialization routine
-function p_mmdvm.init()
-  stream_map = {}
 end
 
 -- register a chained dissector for port 62030
