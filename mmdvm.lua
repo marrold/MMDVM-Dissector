@@ -339,7 +339,12 @@ function p_mmdvm.dissector (buf, pkt, root)
             if buf:len() == 10 then
                 subtree:add(f_salt, buf(6,4))
                 state_map[_number]['MSG'] = "MST->RPT: AUTH CHALLENGE"
+            elseif buf:len() == 14 then
+                subtree:add(f_rptr_id, buf(6,4))
+                subtree:add(f_salt, buf(10,4))
+                state_map[_number]['MSG'] = "MST->RPT: AUTH CHALLENGE"
             else
+                subtree:add(f_salt, buf(6,4))
                 state_map[_number]['MALFORMED'] = true
                 state_map[_number]['MSG'] = "MST->RPT: AUTH CHALLENGE [MALFORMED]"
             end
@@ -389,8 +394,11 @@ function p_mmdvm.dissector (buf, pkt, root)
       elseif state_map[_number]['STATE'] == "INIT" then
         _message = state_map[_number]['MSG']
         pkt.cols.info:set(_message)
-        if not state_map[_number]['MALFORMED'] then
-          subtree:add(f_salt, buf(6,4))
+        if buf:len() == 10 then
+            subtree:add(f_salt, buf(6,4))
+        elseif buf:len() == 14 then
+            subtree:add(f_rptr_id, buf(6,4))
+            subtree:add(f_salt, buf(10,4))
         end
       end
 
