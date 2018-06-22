@@ -22,7 +22,8 @@ local f_frame_type = ProtoField.string("mmdvm.frame_type", "Frame type", base.AS
 local f_data_type = ProtoField.string("mmdvm.data_type", "Data type", base.ASCII)
 local f_voice_seq = ProtoField.string("mmdvm.voice_seq", "Voice Sequence", base.ASCII)
 local f_stream_id = ProtoField.uint32("mmdvm.stream_id", "Stream ID", base.DEC)
-local f_dmr_pkt = ProtoField.bytes("mmdvm.date", "DMR Data", base.NONE)
+local f_dmr_pkt = ProtoField.bytes("mmdvm.data", "DMR Data", base.NONE)
+local f_dmr_sig = ProtoField.bytes("mmdvm.sig", "DMR Signature", base.NONE)
 local f_ber = ProtoField.string("mmdvm.ber", "BER", base.ASCII)
 local f_rssi = ProtoField.string("mmdvm.rssi", "RSSI", base.ASCII)
 
@@ -48,7 +49,7 @@ local f_package_id = ProtoField.string("mmdvm.pkg", "Package ID", base.ASCII)
 local f_options = ProtoField.string("mmdvm.opts", "Options", base.ASCII)
 
 p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_rptr_id_salt, f_slot, f_call_type, 
-  f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_ber, f_rssi, f_salt, f_hash, 
+  f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_dmr_sig, f_ber, f_rssi, f_salt, f_hash, 
   f_call_sign, f_rx_freq, f_tx_freq, f_pwr, f_color_code, f_latitude, f_longitude, f_height, f_location,
   f_description, f_mode, f_slots, f_url, f_software_id, f_package_id, f_options}
  
@@ -259,13 +260,15 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       subtree:add(f_stream_id, buf(16,4))
       subtree:add(f_dmr_pkt, buf(20,33))
-      if buf:len() >= 55 then
+      if buf:len() == 55 then
         subtree:add(f_ber, buf(53,1), _ber)
              :append_text("%")
         if tonumber(_rssi) < 0 then
           subtree:add(f_rssi, buf(54,1), _rssi)
                  :append_text("dBm")
         end
+      elseif buf:len() == 73 then
+        subtree:add(f_dmr_sig, buf(53,20))
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTP" then
