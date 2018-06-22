@@ -23,7 +23,7 @@ local f_data_type = ProtoField.string("mmdvm.data_type", "Data type", base.ASCII
 local f_voice_seq = ProtoField.string("mmdvm.voice_seq", "Voice Sequence", base.ASCII)
 local f_stream_id = ProtoField.uint32("mmdvm.stream_id", "Stream ID", base.DEC)
 local f_dmr_pkt = ProtoField.bytes("mmdvm.data", "DMR Data", base.NONE)
-local f_dmr_sig = ProtoField.bytes("mmdvm.sig", "DMR Signature", base.NONE)
+local f_dmr_sig = ProtoField.bytes("mmdvm.sig", "OpenBridge Signature", base.NONE)
 local f_ber = ProtoField.string("mmdvm.ber", "BER", base.ASCII)
 local f_rssi = ProtoField.string("mmdvm.rssi", "RSSI", base.ASCII)
 
