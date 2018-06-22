@@ -232,6 +232,14 @@ function p_mmdvm.dissector (buf, pkt, root)
       _data_type = data_type(buf(15,1))
       _voice_seq = voice_seq(buf(15,1))
 
+      if buf:len() == 73 then
+        _signed = true
+      else
+        _signed = false
+      end
+
+      _pkt_info = "UNKNOWN"
+
       -- add protocol fields to subtree
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_seq, buf(4,1))
@@ -245,18 +253,24 @@ function p_mmdvm.dissector (buf, pkt, root)
       if _frame_type == "data_sync" then
         subtree:add(f_data_type, buf(15,1), _data_type)
         if _data_type == "voice_head" then
-          pkt.cols.info:set("VOICE HEADER")
+          _pkt_info = "VOICE HEADER"
         elseif _data_type == "voice_term" then
-          pkt.cols.info:set("VOICE TERMINATOR")
+          _pkt_info = "VOICE TERMINATOR"
         end
       else
         subtree:add(f_voice_seq, buf(15,1), _voice_seq)
         if _frame_type == "voice_sync" then
-          pkt.cols.info:set("VOICE SYNC")
+          _pkt_info = "VOICE SYNC"
         else
-          pkt.cols.info:set("VOICE FRAME")
+          _pkt_info = "VOICE FRAME"
         end
       end
+
+      if _signed then
+        _pkt_info = _pkt_info .. " (SIGNED)"
+      end
+
+      pkt.cols.info:set(_pkt_info)
 
       subtree:add(f_stream_id, buf(16,4))
       subtree:add(f_dmr_pkt, buf(20,33))
@@ -267,7 +281,7 @@ function p_mmdvm.dissector (buf, pkt, root)
           subtree:add(f_rssi, buf(54,1), _rssi)
                  :append_text("dBm")
         end
-      elseif buf:len() == 73 then
+      elseif _signed then
         subtree:add(f_dmr_sig, buf(53,20))
       end
 
