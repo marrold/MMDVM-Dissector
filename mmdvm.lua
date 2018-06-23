@@ -2,6 +2,7 @@
 -- state handling
 local stream_map = {}
 local state_map = {}
+local socket_map = {}
 local f_udp_stream  = Field.new("udp.stream")
 
 -- create myproto protocol and its fields
@@ -197,6 +198,12 @@ function rssi(bits)
   return result
 end
 
+-- converts TG to string
+function tg(bits)
+    result = bits:uint()
+    return result
+end
+
 -- init maps on start
 function p_mmdvm.init()
     stream_map = {}
@@ -213,12 +220,19 @@ function p_mmdvm.dissector (buf, pkt, root)
   -- handle state
   _stream = f_udp_stream().value
   _number = tostring(pkt.number)
+  _src_ip = tostring(pkt.src)
+  _src_port = tostring(pkt.src_port)
+  _dst_ip = tostring(pkt.dst)
+  _dst_port = tostring(pkt.dst_port)
+  _dst_socket = _dst_ip .. ":" .. _dst_port
 
   if not pkt.visited then
     if not stream_map[_stream] then
       stream_map[_stream] = {}
     end
   end
+
+  -- info("Number: " .. _number .. " Source: " .. _src_ip .. ":" .. _src_port .. " Destination: " .. _dst_ip .. ":" .. _dst_port)
 
   -- create subtree for mmdvm
   subtree = root:add(p_mmdvm, buf(0))
@@ -231,6 +245,8 @@ function p_mmdvm.dissector (buf, pkt, root)
       _rssi = rssi(buf(54,1))
       _data_type = data_type(buf(15,1))
       _voice_seq = voice_seq(buf(15,1))
+      _src_id = tg(buf(5,3))
+      _dst_id = tg(buf(8,3))
 
       if buf:len() == 73 then
         _signed = true
@@ -255,15 +271,27 @@ function p_mmdvm.dissector (buf, pkt, root)
         if _data_type == "voice_head" then
           _pkt_info = "VOICE HEADER"
         elseif _data_type == "voice_term" then
-          _pkt_info = "VOICE TERMINATOR"
+          _pkt_info = "VOICE TERM  "
         end
       else
         subtree:add(f_voice_seq, buf(15,1), _voice_seq)
         if _frame_type == "voice_sync" then
-          _pkt_info = "VOICE SYNC"
+          _pkt_info = "VOICE SYNC  "
         else
-          _pkt_info = "VOICE FRAME"
+          _pkt_info = "VOICE FRAME "
         end
+      end
+
+      if socket_map[_dst_socket] then
+        _pkt_info = socket_map[_dst_socket] .. ": " .. _pkt_info
+      else
+        _pkt_info = " UNKNOWN" .. ": " .. _pkt_info
+      end
+
+      if _call_type == "unit" then
+        _pkt_info = _pkt_info .. " [" .. _src_id .. " -> " .. _dst_id .. " PRIVATE]"
+      else
+        _pkt_info = _pkt_info .. " [" .. _src_id .. " -> " .. _dst_id .. " GROUP]"
       end
 
       if _signed then
@@ -290,20 +318,37 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_rptr_id, buf(7,4))
       pkt.cols.info:set("RPT->MST: PING")
 
+      if not pkt.visited then
+        socket_map[_dst_socket] = "RPT->MST"
+      end
+
+
     elseif (tostring(buf(0,4)):fromhex()) == "MSTP" then
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id, buf(7,4))
       pkt.cols.info:set("MST->RPT: PONG")
+
+      if not pkt.visited then
+        socket_map[_dst_socket] = "MST->RPT"
+      end
 
     elseif (tostring(buf(0,5)):fromhex()) == "RPTCL" then
       subtree:add(f_signature, buf(0,5))
       subtree:add(f_rptr_id, buf(5,4))
       pkt.cols.info:set("RPT->MST: CLOSING DOWN")
 
+      if not pkt.visited then
+        socket_map[_dst_socket] = "RPT->MST"
+      end
+
     elseif (tostring(buf(0,4)):fromhex()) == "MSTC" then
       subtree:add(f_signature, buf(0,5))
       subtree:add(f_rptr_id, buf(5,4))
       pkt.cols.info:set("MST->RPT: CLOSING DOWN")
+
+      if not pkt.visited then
+        socket_map[_dst_socket] = "MST->RPT"
+      end      
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTL" then
       subtree:add(f_signature, buf(0,4))
@@ -322,6 +367,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       if not pkt.visited then
         stream_map[_stream]["STATE"] = "AUTH"
+        socket_map[_dst_socket] = "RPT->MST"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTA" then
@@ -329,6 +375,8 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,6))
    
       if not pkt.visited then
+
+         socket_map[_dst_socket] = "MST->RPT"
 
         if not state_map[_number] then
           state_map[_number] = {}
@@ -509,6 +557,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       if not pkt.visited then
         stream_map[_stream]["STATE"] = "CONF"
+        socket_map[_dst_socket] = "RPT->MST"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTO" then
@@ -520,6 +569,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       if not pkt.visited then
         stream_map[_stream]["STATE"] = "OPTIONS"
+        socket_map[_dst_socket] = "RPT->MST"
       end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTSBKN" then
@@ -527,6 +577,10 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_signature, buf(0,6))
       subtree:add(f_rptr_id_ascii, buf(6,8))  
       pkt.cols.info:set("MST->RPT: BEACON")
+
+      if not pkt.visited then
+        socket_map[_dst_socket] = "MST->RPT"
+      end
 
     elseif (tostring(buf(0,7)):fromhex()) == "RPTRSSI" then
 
@@ -539,6 +593,10 @@ function p_mmdvm.dissector (buf, pkt, root)
              :append_text("dBm")
       pkt.cols.info:set("RPT->MST: RSSI")
 
+      if not pkt.visited then
+        socket_map[_dst_socket] = "RPT->MST"
+      end
+
     elseif (tostring(buf(0,7)):fromhex()) == "RPTINTR" then
 
       _bm_slot = bm_slot(buf(10,2)) 
@@ -547,6 +605,10 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_rptr_id_ascii, buf(7,8))
       subtree:add(f_slots, buf(15,2), _bm_slot)
       pkt.cols.info:set("RPT->MST: CALL INTERRUPT")
+
+      if not pkt.visited then
+        socket_map[_dst_socket] = "RPT->MST"
+      end
 
     end
 end
