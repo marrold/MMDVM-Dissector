@@ -140,6 +140,8 @@ function data_type(bits)
     return "voice_head"
   elseif (result == 2) then
     return "voice_term"
+  else
+    return "unknown (" .. result ..")"
   end
 end
 
@@ -271,7 +273,9 @@ function p_mmdvm.dissector (buf, pkt, root)
         if _data_type == "voice_head" then
           _pkt_info = "VOICE HEADER"
         elseif _data_type == "voice_term" then
-          _pkt_info = "VOICE TERM  "
+          _pkt_info = "VOICE TERM"
+        else
+          _pkt_info =  string.upper(_data_type)
         end
       else
         subtree:add(f_voice_seq, buf(15,1), _voice_seq)
