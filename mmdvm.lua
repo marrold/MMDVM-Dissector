@@ -49,11 +49,11 @@ local f_package_id = ProtoField.string("mmdvm.pkg", "Package ID", base.ASCII)
 
 local f_options = ProtoField.string("mmdvm.opts", "Options", base.ASCII)
 
-p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_rptr_id_salt, f_slot, f_call_type, 
-  f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_dmr_sig, f_ber, f_rssi, f_salt, f_hash, 
+p_mmdvm.fields = {f_signature, f_len, f_seq, f_src_id, f_dst_id, f_rptr_id, f_rptr_id_salt, f_slot, f_call_type,
+  f_frame_type, f_data_type, f_voice_seq, f_stream_id, f_dmr_pkt, f_dmr_sig, f_ber, f_rssi, f_salt, f_hash,
   f_call_sign, f_rx_freq, f_tx_freq, f_pwr, f_color_code, f_latitude, f_longitude, f_height, f_location,
   f_description, f_mode, f_slots, f_url, f_software_id, f_package_id, f_options}
- 
+
 -- convert hex to string
 function string.fromhex(str)
     return (str:gsub('..', function (cc)
@@ -119,13 +119,15 @@ function frame_type(bits)
   bits = bits:get_index(0)
   bits = bit.band(bits, 0x30)
   result = bit.rshift(bits, 4)
-  
+
   if(result == 0) then
     return "voice"
   elseif (result == 1) then
     return "voice_sync"
   elseif (result == 2) then
     return "data_sync"
+  else
+    return "unknown"
   end
 end
 
@@ -147,7 +149,7 @@ end
 
 -- returns voice sequence from MMDVM header
 function voice_seq(bits)
-  
+
   bits = bits:bytes()
   bits = bits:get_index(0)
   result = bit.band(bits, 0x0F)
@@ -163,6 +165,8 @@ function voice_seq(bits)
     return "E"
   elseif (result == 5) then
     return "F"
+  else
+    return ""
   end
 end
 
@@ -243,8 +247,6 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       _call_type = call_type(buf(15,1))
       _frame_type = frame_type(buf(15,1))
-      _ber = ber(buf(53,1))
-      _rssi = rssi(buf(54,1))
       _data_type = data_type(buf(15,1))
       _voice_seq = voice_seq(buf(15,1))
       _src_id = tg(buf(5,3))
@@ -307,6 +309,10 @@ function p_mmdvm.dissector (buf, pkt, root)
       subtree:add(f_stream_id, buf(16,4))
       subtree:add(f_dmr_pkt, buf(20,33))
       if buf:len() == 55 then
+
+        _ber = ber(buf(53,1))
+        _rssi = rssi(buf(54,1))
+
         subtree:add(f_ber, buf(53,1), _ber)
              :append_text("%")
         if tonumber(_rssi) < 0 then
@@ -352,13 +358,13 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       if not pkt.visited then
         socket_map[_dst_socket] = "MST->RPT"
-      end      
+      end
 
     elseif (tostring(buf(0,4)):fromhex()) == "RPTL" then
       subtree:add(f_signature, buf(0,4))
       subtree:add(f_rptr_id, buf(4,4))
       pkt.cols.info:set("RPT->MST: LOGIN INIT")
-      
+
       if not pkt.visited then
         stream_map[_stream]["STATE"] = "INIT"
       end
@@ -377,7 +383,7 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "RPTA" then
 
       subtree:add(f_signature, buf(0,6))
-   
+
       if not pkt.visited then
 
          socket_map[_dst_socket] = "MST->RPT"
@@ -409,9 +415,9 @@ function p_mmdvm.dissector (buf, pkt, root)
               state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFUL"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFUL [MALFORMED]"            
+              state_map[_number]['MSG'] = "MST->RPT: AUTH SUCCESSFUL [MALFORMED]"
             end
-            pkt.cols.info:set(state_map[_number]['MSG'])    
+            pkt.cols.info:set(state_map[_number]['MSG'])
 
         elseif stream_map[_stream]["STATE"] == "LOGIN" or stream_map[_stream]["STATE"] == "CONF" then
             state_map[_number]['STATE'] = "LOGIN"
@@ -458,7 +464,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
       subtree:add(f_signature, buf(0,6))
       info("NAK in frame" .. _number)
-   
+
       if not pkt.visited then
 
         info("univsited NAK in frame" .. _number)
@@ -485,9 +491,9 @@ function p_mmdvm.dissector (buf, pkt, root)
               state_map[_number]['MSG'] = "MST->RPT: AUTH FAILED"
             else
               state_map[_number]['MALFORMED'] = true
-              state_map[_number]['MSG'] = "MST->RPT: AUTH FAILED [MALFORMED]"            
+              state_map[_number]['MSG'] = "MST->RPT: AUTH FAILED [MALFORMED]"
             end
-            pkt.cols.info:set(state_map[_number]['MSG'])    
+            pkt.cols.info:set(state_map[_number]['MSG'])
 
         elseif stream_map[_stream]["STATE"] == "CONF" then
             state_map[_number]['STATE'] = "CONF"
@@ -517,7 +523,7 @@ function p_mmdvm.dissector (buf, pkt, root)
             pkt.cols.info:set("MSTNAK")
           else
              pkt.cols.info:set("MSTNAK [MALFORMED]")
-          end          
+          end
         end
 
       else
@@ -567,8 +573,8 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "RPTO" then
 
       subtree:add(f_signature, buf(0,4))
-      subtree:add(f_rptr_id, buf(4,4))   
-      subtree:add(f_options, buf(8,buf:len() - 8 ))     
+      subtree:add(f_rptr_id, buf(4,4))
+      subtree:add(f_options, buf(8,buf:len() - 8 ))
       pkt.cols.info:set("RPT->MST: OPTIONS")
 
       if not pkt.visited then
@@ -579,7 +585,7 @@ function p_mmdvm.dissector (buf, pkt, root)
     elseif (tostring(buf(0,4)):fromhex()) == "RPTSBKN" then
 
       subtree:add(f_signature, buf(0,6))
-      subtree:add(f_rptr_id_ascii, buf(6,8))  
+      subtree:add(f_rptr_id_ascii, buf(6,8))
       pkt.cols.info:set("MST->RPT: BEACON")
 
       if not pkt.visited then
@@ -588,7 +594,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
     elseif (tostring(buf(0,7)):fromhex()) == "RPTRSSI" then
 
-      _bm_slot = bm_slot(buf(10,2)) 
+      _bm_slot = bm_slot(buf(10,2))
 
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id_ascii, buf(7,8))
@@ -603,7 +609,7 @@ function p_mmdvm.dissector (buf, pkt, root)
 
     elseif (tostring(buf(0,7)):fromhex()) == "RPTINTR" then
 
-      _bm_slot = bm_slot(buf(10,2)) 
+      _bm_slot = bm_slot(buf(10,2))
 
       subtree:add(f_signature, buf(0,7))
       subtree:add(f_rptr_id_ascii, buf(7,8))
@@ -623,5 +629,3 @@ dissector = udp_dissector_table:get_dissector(62031)
   -- you can call dissector from function p_mmdvm.dissector above
   -- so that the previous dissector gets called
 udp_dissector_table:add(62031, p_mmdvm)
-
-
