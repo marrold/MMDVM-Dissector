@@ -17,6 +17,7 @@ All contributions and feedback are much appreciated.
 ### Caveats
 
 * I am **not** a LUA or Wireshark expert, so this may not be perfect code. Use at your own risk.
+* This dissector only works with the MMDVMHost protocol, **not** the Generic Homebrew procotol used by BlueDV and potentially other software.
 * Currently MMDVM-dissector will only dissect the MMDVM Headers, not the DMR frames themselves.
 
 ### Installation
