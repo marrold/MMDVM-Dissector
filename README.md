@@ -4,6 +4,7 @@ I use Wireshark on an almost daily basis to troubleshoot the SIP protocol and ha
 
 All contributions and feedback are much appreciated.
 
+2025 Update - This seems to still be working on Wireshark 3.6
 
 ### Features
 
