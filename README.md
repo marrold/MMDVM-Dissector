@@ -22,10 +22,9 @@ All contributions and feedback are much appreciated.
 
 ### Installation
 
-* Find Wiresharks global configuration directory, by going to `Help > About > Folders`
-  * **OSX** - `/Applications/Wireshark.app/Contents/Resources/share/wireshark`
-* Copy mmdvm.lua into the directory
-* Open init.lua in a text editor and add `dofile(DATA_DIR.."mmdvm.lua")` at the bottom of the file
+* Copy mmdvm.lua into the plugins directory:
+  * **OSX** - `/Applications/Wireshark.app/Contents/Resources/lib/wireshark/plugins`
+  * **Windows** - `C:\Program Files\Wireshark\plugins`
 * Restart / start Wireshark
 
 ### Usage
